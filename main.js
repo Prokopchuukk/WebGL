@@ -80,10 +80,9 @@ function draw() {
 
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
     
-    /* Draw the six faces of a cube, with different colors. */
-    gl.uniform4fv(shProgram.iColor, [1,1,0,1] );
-
-    surface.Draw();
+    if (surface) {
+    surface.Draw(gl, shProgram);
+}
 }
 
 function CreateSurfaceData()
@@ -110,8 +109,8 @@ function initGL() {
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
     shProgram.iColor                     = gl.getUniformLocation(prog, "color");
 
-    surface = new Model('Surface');
-    surface.BufferData(CreateSurfaceData());
+    surface = new SurfaceModel(30, 30);
+    surface.BufferData(gl);
 
     gl.enable(gl.DEPTH_TEST);
 }
