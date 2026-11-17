@@ -1,12 +1,24 @@
-
-
 // Vertex shader
 const vertexShaderSource = `
 attribute vec3 vertex;
-uniform mat4 ModelViewProjectionMatrix;
+attribute vec3 normal;
+
+uniform mat4 ModelViewMatrix;
+uniform mat4 ProjectionMatrix;
+uniform mat3 NormalMatrix;
+
+varying vec3 vNormal;
+varying vec3 vPosition;
 
 void main() {
-    gl_Position = ModelViewProjectionMatrix * vec4(vertex,1.0);
+    // Позиція вершини в системі координат камери (View Space)
+    vec4 viewPos = ModelViewMatrix * vec4(vertex, 1.0);
+    vPosition = viewPos.xyz;
+
+    // Трансформуємо нормаль
+    vNormal = normalize(NormalMatrix * normal);
+
+    gl_Position = ProjectionMatrix * viewPos;
 }`;
 
 
@@ -18,7 +30,41 @@ const fragmentShaderSource = `
    precision mediump float;
 #endif
 
-uniform vec4 color;
+uniform vec3 lightPosition; // Позиція джерела світла (вже помножена на ModelView)
+uniform vec4 color;         // Базовий колір матеріалу
+
+varying vec3 vNormal;
+varying vec3 vPosition;
+
 void main() {
-    gl_FragColor = color;
+    // Обов'язкова повторна нормалізація після апаратної інтерполяції
+    vec3 N = normalize(vNormal);
+    
+    // Напрямок від точки поверхні до джерела світла
+    vec3 L = normalize(lightPosition - vPosition);
+    
+    // Напрямок на глядача (за підказкою в умові можемо брати (0, 0, 1))
+    vec3 V = vec3(0.0, 0.0, 1.0);
+    
+    // Відбитий промінь
+    vec3 R = reflect(-L, N);
+
+    // 1. Навколишня складова (Ambient)
+    vec3 ambient = 0.2 * color.rgb;
+
+    // 2. Розсіяна складова (Diffuse)
+    float diff = max(dot(N, L), 0.0);
+    vec3 diffuse = diff * color.rgb;
+
+    // 3. Дзеркальна складова (Specular)
+    float spec = 0.0;
+    if (diff > 0.0) {
+        float shininess = 32.0;
+        spec = pow(max(dot(R, V), 0.0), shininess);
+    }
+    vec3 specular = vec3(1.0, 1.0, 1.0) * spec * 0.7;
+
+    // Підсумкова інтенсивність I_rgb = Ambient + Diffuse + Specular
+    vec3 finalColor = ambient + diffuse + specular;
+    gl_FragColor = vec4(finalColor, color.a);
 }`;
